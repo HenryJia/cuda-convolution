@@ -1,9 +1,9 @@
 #define CC 52
-//#define BLOCK_THREADS 64
-//#define BLOCK_DIM 16
+#define BLOCK_DIM1 64
+#define BLOCK_DIM2 16
 
-#ifndef IDX2C
+#ifndef IDX2C // For Column Major
 #define IDX2C(i,j,ld) (j * ld + i) // i is column, j is row, ld is total number of columns
 #endif
 
-#define NUM_BLOCKS(M) (M + BLOCK_THREADS - 1) / BLOCK_THREADS
+#define O_TILE_DIM(block, filter) (block - filter + 1)

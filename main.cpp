@@ -2,51 +2,6 @@
 #include "conv.h"
 #include <vector>
 
-#define FILTER_DIM 5
-namespace tiny_cnn {
-
-typedef double float_t;
-typedef unsigned short layer_size_t;
-typedef size_t label_t;
-typedef std::vector<float_t> vec_t;
-
-#include <cuda_runtime.h>
-#include <cuda.h>
-
-class cu_vec_t
-{
-public: 
-    cu_vec_t(size_t sz) : size_(sz) {
-        cudaMalloc((void**)&data_, sz * sizeof(float_t));
-    }
-    cu_vec_t(size_t sz, vec_t host_data) : size_(sz) {
-        cudaMalloc((void**)&data_, sz * sizeof(float_t));
-        get_host(host_data);
-    }
-
-    ~cu_vec_t() {
-        cudaFree(data_);
-    }
-
-    void get_host(vec_t host_data) {
-        cudaMemcpy(data_, &host_data[0], size_ * sizeof(float_t), cudaMemcpyHostToDevice);
-    }
-    vec_t get_Device() {
-        float_t p[size_];
-        cudaMemcpy(data_, p, size_ * sizeof(float_t), cudaMemcpyDeviceToHost);
-        vec_t v(p, p + sizeof p / sizeof p[0]);
-        return v;
-    }
-
-    
-
-private:
-    float_t* data_;
-    size_t size_;
-};
-
-}
-
 int main(int argc, char **argv)
 {
 	vector<vector<float>> test1Vec = readCSV("../Test1.csv", false);
@@ -63,7 +18,7 @@ int main(int argc, char **argv)
 	int n2 = test2Vec[0].size();
 
 	/*
-	 * 1D Convolution
+	 * 1D Valid Convolution
 	 */
 
 	float* result1;
@@ -86,9 +41,7 @@ int main(int argc, char **argv)
 	writeCSV(result1Vec, "../result1.csv");
 
 	/*
-	 * 2D Convolution
-	 * Note: this does not fully work yet. The indices in the convolution kernel are wrong and needs debugging. It's convoluting
-	 * correctly but missing out chunks of the image.
+	 * 2D Valid Convolution
 	 */
 
 	float* result2;
