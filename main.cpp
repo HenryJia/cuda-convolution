@@ -17,6 +17,10 @@ int main(int argc, char **argv)
 	int m2 = test2Vec.size();
 	int n2 = test2Vec[0].size();
 
+	cudaEvent_t custart, custop;
+	cudaEventCreate(&custart);
+	cudaEventCreate(&custop);
+
 	/*
 	 * 1D Valid Convolution
 	 */
@@ -53,9 +57,18 @@ int main(int argc, char **argv)
 	conv2ValidGPU(test2, testFilter2, result2, m2, n2, 5, 5);
 	auto end2 = chrono::steady_clock::now();
 	auto elapsed2 = end2 - start2;
-	cout << "2D Convolution time: " << chrono::duration <float, nano> (elapsed2).count() << " ns" << endl;
+	cout << "2D Convolution time (warm up): " << chrono::duration <float, nano> (elapsed2).count() << " ns" << endl;
+
+	cudaEventRecord(custart);
+	conv2ValidGPU(test2, testFilter2, result2, m2, n2, 5, 5);
+	cudaEventRecord(custop);
 
 	float* result2Host = copyFromGPU(result2, (m2 - 5 + 1), (n2 - 5 + 1));
+
+	cudaEventSynchronize(custop);
+	float milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, custart, custop);
+	cout << "2D Convolution time: " << milliseconds << " ms" << endl;
 
 	for(int i = 0; i < 5; i++)
 	{
