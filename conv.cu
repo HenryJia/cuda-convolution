@@ -36,6 +36,44 @@ __global__ void kernelConvValid(const float* in, const float* __restrict__ filte
 }
 
 /*
+ * A 1D Full convolution kernel.
+ */
+
+void convFullGPU(const float* in, const float* filter, float* out, int M, int filterM)
+{
+	// We can do full convolution by simply padding valid convolution.
+	// So we shift indices and add more threads to deal with extra elements
+	int outM = M + filterM - 1;
+	int oTile = O_TILE_DIM(BLOCK_DIM1, filterM);
+	kernelConvFull<<<((outM - 1) / oTile + 1), BLOCK_DIM1>>>(in, filter, out, M, filterM, outM, oTile);
+}
+
+__global__ void kernelConvFull(const float* in, const float* __restrict__ filter, float* out, int M, int filterM, int outM, int oTile)
+{
+	int bx = blockIdx.x;
+	int tx = threadIdx.x;
+	int row = bx * oTile + tx;
+	int row_i = row - filterM + 1;
+	float CValue = 0;
+
+	__shared__ float ds_in[BLOCK_DIM1];
+
+	if(row_i < M && row_i >= 0)
+		ds_in[tx] = in[row_i];
+	else
+		ds_in[tx] = 0.0;
+
+	__syncthreads();
+
+	if(tx < oTile && row < outM)
+	{
+		for(int i = 0; i < filterM; i++)
+			CValue += ds_in[tx + i] * filter[i];
+		out[row] = CValue;
+	}
+}
+
+/*
  * A 2D Valid convolution kernel.
  */
 

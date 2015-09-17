@@ -45,6 +45,27 @@ int main(int argc, char **argv)
 	writeCSV(result1Vec, "../result1.csv");
 
 	/*
+	 * 1D Full Convolution
+	 */
+
+	float* resultFull1;
+	cudaMalloc((void**)&resultFull1, (m1 + 5 - 1) * sizeof(float));
+
+	auto startFull = chrono::steady_clock::now();
+	convFullGPU(test1, testFilter1, resultFull1, m1, 5);
+	auto endFull = chrono::steady_clock::now();
+	auto elapsedFull = endFull - startFull;
+	cout << "1D Convolution time: " << chrono::duration <float, nano> (elapsedFull).count() << " ns" << endl;
+
+	float* resultFull1Host = copyFromGPU(resultFull1, (m1 + 5 - 1), 1);
+
+	for(int i = 0; i < 5; i++)
+		cout << resultFull1Host[i] << endl;
+
+	vector<vector<float>> resultFull1Vec = matToVector2d(resultFull1Host, (m1 + 5 - 1), 1);
+	writeCSV(resultFull1Vec, "../resultFull1.csv");
+
+	/*
 	 * 2D Valid Convolution
 	 */
 
@@ -83,8 +104,10 @@ int main(int argc, char **argv)
 	free(test1Host);
 	free(testFilter1Host);
 	free(result1Host);
+	free(resultFull1Host);
 
 	cudaFree(result1);
+	cudaFree(resultFull1);
 	cudaFree(test1);
 	cudaFree(testFilter1);
 

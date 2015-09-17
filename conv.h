@@ -9,14 +9,21 @@
 using namespace std;
 
 /*
- * An 1D convolution kernel.
+ * An 1D Valid convolution kernel.
  */
 
 void convValidGPU(const float* in, const float* filter, float* out, int M, int filterM);
 __global__ void kernelConvValid(const float* in, const float* __restrict__ filter, float* out, int M, int filterM, int outM, int oTile);
 
 /*
- * A 2D convolution kernel.
+ * An 1D Full convolution kernel.
+ */
+
+void convFullGPU(const float* in, const float* filter, float* out, int M, int filterM);
+__global__ void kernelConvFull(const float* in, const float* __restrict__ filter, float* out, int M, int filterM, int outM, int oTile);
+
+/*
+ * A 2D Valid convolution kernel.
  */
 
 void conv2ValidGPU(const float* in, const float* filter, float* out, int M, int N, int filterM, int filterN);
