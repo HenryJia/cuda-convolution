@@ -116,3 +116,49 @@ __global__ void kernelConv2Valid(const float* in, const float* __restrict__ filt
 		out[IDX2C(row, col, outM)] = CValue;
 	}
 }
+
+/*
+ * A 2D Full convolution kernel.
+ */
+
+void conv2FullGPU(const float* in, const float* filter, float* out, int M, int N, int filterM, int filterN)
+{
+	int outM = M + filterM - 1;
+	int outN = N + filterN - 1;
+	int oTileM = O_TILE_DIM(BLOCK_DIM2, filterM);
+	int oTileN = O_TILE_DIM(BLOCK_DIM2, filterN);
+	dim3 gridDim(((outN - 1) / oTileN + 1), ((outM - 1) / oTileM + 1));
+	dim3 blockDim(BLOCK_DIM2, BLOCK_DIM2);
+	kernelConv2Full<<<gridDim, blockDim>>>(in, filter, out, M, N, filterM, filterN, outM, outN, oTileM, oTileN);
+}
+
+__global__ void kernelConv2Full(const float* in, const float* __restrict__ filter, float* out, int M, int N, int filterM, int filterN,
+                                int outM, int outN, int oTileM, int oTileN)
+{
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int row = by * oTileM + ty;
+	int col = bx * oTileN + tx;
+	int row_i = row - filterM + 1;
+	int col_i = col - filterN + 1;
+	float CValue = 0;
+
+	__shared__ float ds_in[BLOCK_DIM2][BLOCK_DIM2];
+
+	if(row_i < M && row_i >= 0 && col_i < N && col_i >= 0)
+		ds_in[ty][tx] = in[IDX2C(row_i, col_i, M)];
+	else
+		ds_in[ty][tx] = 0.0;
+
+	__syncthreads();
+
+	if(ty < oTileM && tx < oTileN && row < outM && col < outN)
+	{
+		for(int i = 0; i < filterM; i++)
+			for(int j = 0; j < filterN; j++)
+				CValue += ds_in[ty + i][tx + j] * filter[IDX2C(i, j, filterM)];
+		out[IDX2C(row, col, outM)] = CValue;
+	}
+}

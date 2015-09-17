@@ -30,13 +30,17 @@ int main(int argc, char **argv)
 	float* test1 = copyToGPU(test1Host, m1, 1);
 	float* testFilter1 = copyToGPU(testFilter1Host, 5, 1);
 
-	auto start = chrono::steady_clock::now();
 	convValidGPU(test1, testFilter1, result1, m1, 5);
-	auto end = chrono::steady_clock::now();
-	auto elapsed = end - start;
-	cout << "1D Convolution time: " << chrono::duration <float, nano> (elapsed).count() << " ns" << endl;
+	cudaEventRecord(custart);
+	convValidGPU(test1, testFilter1, result1, m1, 5);
+	cudaEventRecord(custop);
 
 	float* result1Host = copyFromGPU(result1, (m1 - 5 + 1), 1);
+
+	cudaEventSynchronize(custop);
+	float milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, custart, custop);
+	cout << "1D Convolution time: " << milliseconds << " ms" << endl;
 
 	for(int i = 0; i < 5; i++)
 		cout << result1Host[i] << endl;
@@ -51,13 +55,17 @@ int main(int argc, char **argv)
 	float* resultFull1;
 	cudaMalloc((void**)&resultFull1, (m1 + 5 - 1) * sizeof(float));
 
-	auto startFull = chrono::steady_clock::now();
 	convFullGPU(test1, testFilter1, resultFull1, m1, 5);
-	auto endFull = chrono::steady_clock::now();
-	auto elapsedFull = endFull - startFull;
-	cout << "1D Convolution time: " << chrono::duration <float, nano> (elapsedFull).count() << " ns" << endl;
+	cudaEventRecord(custart);
+	convFullGPU(test1, testFilter1, resultFull1, m1, 5);
+	cudaEventRecord(custop);
 
 	float* resultFull1Host = copyFromGPU(resultFull1, (m1 + 5 - 1), 1);
+
+	cudaEventSynchronize(custop);
+	milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, custart, custop);
+	cout << "1D Convolution time (full): " << milliseconds << " ms" << endl;
 
 	for(int i = 0; i < 5; i++)
 		cout << resultFull1Host[i] << endl;
@@ -74,12 +82,7 @@ int main(int argc, char **argv)
 	float* test2 = copyToGPU(test2Host, m2, n2);
 	float* testFilter2 = copyToGPU(testFilter2Host, 5, 5);
 
-	auto start2 = chrono::steady_clock::now();
 	conv2ValidGPU(test2, testFilter2, result2, m2, n2, 5, 5);
-	auto end2 = chrono::steady_clock::now();
-	auto elapsed2 = end2 - start2;
-	cout << "2D Convolution time (warm up): " << chrono::duration <float, nano> (elapsed2).count() << " ns" << endl;
-
 	cudaEventRecord(custart);
 	conv2ValidGPU(test2, testFilter2, result2, m2, n2, 5, 5);
 	cudaEventRecord(custop);
@@ -87,7 +90,7 @@ int main(int argc, char **argv)
 	float* result2Host = copyFromGPU(result2, (m2 - 5 + 1), (n2 - 5 + 1));
 
 	cudaEventSynchronize(custop);
-	float milliseconds = 0;
+	milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, custart, custop);
 	cout << "2D Convolution time: " << milliseconds << " ms" << endl;
 
@@ -100,6 +103,34 @@ int main(int argc, char **argv)
 
 	vector<vector<float>> result2Vec = matToVector2d(result2Host, (m2 - 5 + 1), (n2 - 5 + 1));
 	writeCSV(result2Vec, "../result2.csv");
+
+	/*
+	 * 2D Full Convolution
+	 */
+
+	float* resultFull2;
+	cudaMalloc((void**)&resultFull2, (m2 + 5 - 1) * (n2 + 5 - 1) * sizeof(float));
+
+	conv2FullGPU(test2, testFilter2, resultFull2, m2, n2, 5, 5);
+	cudaEventRecord(custart);
+	conv2FullGPU(test2, testFilter2, resultFull2, m2, n2, 5, 5);
+	cudaEventRecord(custop);
+	float* resultFull2Host = copyFromGPU(resultFull2, (m2 + 5 - 1), (n2 + 5 - 1));
+
+	cudaEventSynchronize(custop);
+	milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, custart, custop);
+	cout << "2D Convolution time (full): " << milliseconds << " ms" << endl;
+
+	for(int i = 0; i < 5; i++)
+	{
+		for(int j = 0; j < 5; j++)
+			cout << resultFull2Host[IDX2C(i, j, (m2 + 5 - 1))] << '\t';
+		cout << endl;
+	}
+
+	vector<vector<float>> resultFull2Vec = matToVector2d(resultFull2Host, (m2 + 5 - 1), (n2 + 5 - 1));
+	writeCSV(resultFull2Vec, "../resultFull2.csv");
 
 	free(test1Host);
 	free(testFilter1Host);
@@ -114,8 +145,10 @@ int main(int argc, char **argv)
 	free(test2Host);
 	free(testFilter2Host);
 	free(result2Host);
+	free(resultFull2Host);
 
 	cudaFree(result2);
+	cudaFree(resultFull2);
 	cudaFree(test2);
 	cudaFree(testFilter2);
 
